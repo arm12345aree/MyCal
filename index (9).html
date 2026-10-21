@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🥗 แคลอรี่ & โปรตีน</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=DM+Mono&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0d1117; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #161b22; }
+    ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const FOODS_DB = [
+      { name: "ข้าวสวย (1 ทัพพี)", cal: 130, protein: 2.7 },
+      { name: "ข้าวผัด (1 จาน)", cal: 400, protein: 10 },
+      { name: "ไข่ต้ม (1 ฟอง)", cal: 78, protein: 6.3 },
+      { name: "ไข่ดาว (1 ฟอง)", cal: 90, protein: 6 },
+      { name: "ไก่อบ/ย่าง (100g)", cal: 165, protein: 31 },
+      { name: "อกไก่ต้ม (100g)", cal: 120, protein: 25 },
+      { name: "หมูสับผัด (1 จาน)", cal: 300, protein: 18 },
+      { name: "ปลาทอด (1 ตัว)", cal: 200, protein: 20 },
+      { name: "ผัดกะเพรา (1 จาน)", cal: 380, protein: 20 },
+      { name: "ส้มตำ (1 จาน)", cal: 150, protein: 5 },
+      { name: "ต้มยำ (1 ชาม)", cal: 180, protein: 15 },
+      { name: "แกงจืด (1 ชาม)", cal: 120, protein: 8 },
+      { name: "นมโคจืด (1 กล่อง 200ml)", cal: 120, protein: 6.4 },
+      { name: "กล้วย (1 ผล)", cal: 90, protein: 1.1 },
+      { name: "โปรตีนเชค (1 ช้อน)", cal: 120, protein: 24 },
+      { name: "ขนมปัง (1 แผ่น)", cal: 80, protein: 2.7 },
+      { name: "บะหมี่กึ่งสำเร็จรูป", cal: 350, protein: 8 },
+      { name: "เต้าหู้แข็ง (100g)", cal: 76, protein: 8 },
+      { name: "ถั่วเหลืองต้ม (100g)", cal: 173, protein: 17 },
+      { name: "แซลมอน (100g)", cal: 208, protein: 20 },
+      { name: "ข้าวโอ๊ต (100g)", cal: 380, protein: 17 },
+      { name: "เวย์ (35g)", cal: 130, protein: 27 },
+    ];
+
+    const GOAL_CAL = 2000;
+    const GOAL_PROTEIN = 140;
+    const GOAL_WATER = 4000;
+
+    function Ring({ value, max, color, label, unit }) {
+      const pct = Math.min(value / max, 1);
+      const r = 32;
+      const circ = 2 * Math.PI * r;
+      const dash = pct * circ;
+      const over = value > max;
+      return (
+        <div style={{ textAlign: "center" }}>
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r={r} fill="none" stroke="#1e2530" strokeWidth="8" />
+            <circle cx="40" cy="40" r={r} fill="none"
+              stroke={over ? "#ff4d4d" : color} strokeWidth="8"
+              strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+              transform="rotate(-90 40 40)"
+              style={{ transition: "stroke-dasharray 0.5s ease" }} />
+            <text x="40" y="37" textAnchor="middle" fill="#f0f0f0" fontSize="11" fontWeight="700" fontFamily="'DM Mono', monospace">
+              {Math.round(value)}
+            </text>
+            <text x="40" y="50" textAnchor="middle" fill="#888" fontSize="8" fontFamily="'DM Mono', monospace">
+              /{max}{unit}
+            </text>
+          </svg>
+          <div style={{ color: "#aaa", fontSize: "11px", marginTop: "2px", fontFamily: "'DM Mono', monospace" }}>{label}</div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [meals, setMeals] = useState([]);
+      const [water, setWater] = useState(0);
+      const [search, setSearch] = useState("");
+      const [custom, setCustom] = useState({ name: "", cal: "", protein: "" });
+      const [tab, setTab] = useState("add");
+
+      const today = new Date().toDateString();
+
+      useEffect(() => {
+        const savedMeals = localStorage.getItem(`meals:${today}`);
+        if (savedMeals) setMeals(JSON.parse(savedMeals));
+        const savedWater = localStorage.getItem(`water:${today}`);
+        if (savedWater) setWater(Number(savedWater));
+      }, []);
+
+      useEffect(() => {
+        localStorage.setItem(`meals:${today}`, JSON.stringify(meals));
+      }, [meals]);
+
+      useEffect(() => {
+        localStorage.setItem(`water:${today}`, String(water));
+      }, [water]);
+
+      const totalCal = meals.reduce((s, m) => s + m.cal, 0);
+      const totalProtein = meals.reduce((s, m) => s + m.protein, 0);
+
+      const addFood = (food) => {
+        setMeals(prev => [...prev, { ...food, id: Date.now() }]);
+        setSearch("");
+        setTab("log");
+      };
+
+      const addCustom = () => {
+        if (!custom.name || !custom.cal || !custom.protein) return;
+        addFood({ name: custom.name, cal: Number(custom.cal), protein: Number(custom.protein) });
+        setCustom({ name: "", cal: "", protein: "" });
+      };
+
+      const remove = (id) => setMeals(prev => prev.filter(m => m.id !== id));
+
+      const filtered = search.length > 0
+        ? FOODS_DB.filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
+        : FOODS_DB;
+
+      const s = {
+        app: { minHeight: "100vh", background: "#0d1117", color: "#f0f0f0", fontFamily: "'DM Sans', sans-serif", padding: "20px 16px 40px", maxWidth: "480px", margin: "0 auto" },
+        input: { width: "100%", background: "#161b22", border: "1px solid #30363d", borderRadius: "10px", color: "#f0f0f0", padding: "10px 14px", fontSize: "14px", fontFamily: "'DM Sans', sans-serif", boxSizing: "border-box", outline: "none", marginBottom: "10px" },
+        foodName: { fontSize: "13px", color: "#e6edf3", marginBottom: "2px" },
+        foodMeta: { fontSize: "11px", color: "#8b949e", fontFamily: "'DM Mono', monospace" },
+        addBtn: { background: "#238636", color: "#fff", border: "none", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontSize: "12px", fontWeight: "600", whiteSpace: "nowrap" },
+        delBtn: { background: "transparent", border: "1px solid #30363d", color: "#8b949e", borderRadius: "6px", padding: "4px 8px", cursor: "pointer", fontSize: "11px" },
+      };
+
+      return (
+        <div style={s.app}>
+          <div style={{ textAlign: "center", marginBottom: "20px" }}>
+            <h1 style={{ fontSize: "22px", fontWeight: "800", color: "#f0f0f0" }}>🥗 แคลอรี่ & โปรตีน</h1>
+            <div style={{ fontSize: "12px", color: "#555", marginTop: "4px", fontFamily: "'DM Mono', monospace" }}>
+              {new Date().toLocaleDateString("th-TH", { weekday: "long", day: "numeric", month: "long" })}
+            </div>
+          </div>
+
+          {/* Rings */}
+          <div style={{ display: "flex", justifyContent: "center", gap: "16px", marginBottom: "16px", background: "#161b22", borderRadius: "16px", padding: "16px", border: "1px solid #21262d" }}>
+            <Ring value={totalCal} max={GOAL_CAL} color="#f0a500" label="แคลอรี่" unit="kcal" />
+            <Ring value={totalProtein} max={GOAL_PROTEIN} color="#3fb950" label="โปรตีน" unit="g" />
+            <Ring value={water} max={GOAL_WATER} color="#58a6ff" label="น้ำ" unit="ml" />
+          </div>
+
+          {/* Water */}
+          <div style={{ background: "#161b22", border: "1px solid #21262d", borderRadius: "12px", padding: "14px", marginBottom: "16px" }}>
+            <div style={{ fontSize: "12px", color: "#8b949e", fontWeight: "600", marginBottom: "10px" }}>
+              💧 น้ำวันนี้ — {water >= 1000 ? (water / 1000).toFixed(1) + " L" : water + " ml"} / 4 L
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              {[150, 250, 500].map(ml => (
+                <button key={ml} onClick={() => setWater(w => Math.min(w + ml, GOAL_WATER + 1000))}
+                  style={{ flex: 1, background: "#1c2d3a", border: "1px solid #58a6ff44", color: "#58a6ff", borderRadius: "8px", padding: "8px 4px", cursor: "pointer", fontSize: "12px", fontWeight: "600", fontFamily: "'DM Sans', sans-serif" }}>
+                  +{ml} ml
+                </button>
+              ))}
+              <button onClick={() => setWater(0)}
+                style={{ background: "transparent", border: "1px solid #30363d", color: "#8b949e", borderRadius: "8px", padding: "8px 10px", cursor: "pointer", fontSize: "11px", fontFamily: "'DM Sans', sans-serif" }}>
+                รีเซ็ต
+              </button>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+            {["add", "log"].map(t => (
+              <button key={t} onClick={() => setTab(t)}
+                style={{ flex: 1, padding: "10px", borderRadius: "10px", border: "none", cursor: "pointer", fontWeight: "600", fontSize: "13px", fontFamily: "'DM Sans', sans-serif", background: tab === t ? "#238636" : "#161b22", color: tab === t ? "#fff" : "#888", transition: "all 0.2s" }}>
+                {t === "add" ? "+ เพิ่มอาหาร" : `📋 รายการวันนี้ (${meals.length})`}
+              </button>
+            ))}
+          </div>
+
+          {/* Add tab */}
+          {tab === "add" && (
+            <div>
+              <input style={s.input} placeholder="🔍 ค้นหาอาหาร..." value={search} onChange={e => setSearch(e.target.value)} />
+              <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+                {filtered.map((f, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#161b22", border: "1px solid #21262d", borderRadius: "10px", padding: "10px 14px", marginBottom: "8px" }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = "#238636"}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = "#21262d"}>
+                    <div>
+                      <div style={s.foodName}>{f.name}</div>
+                      <div style={s.foodMeta}>{f.cal} kcal • โปรตีน {f.protein}g</div>
+                    </div>
+                    <button style={s.addBtn} onClick={() => addFood(f)}>เพิ่ม</button>
+                  </div>
+                ))}
+              </div>
+              <div style={{ background: "#161b22", border: "1px dashed #30363d", borderRadius: "12px", padding: "14px", marginTop: "8px" }}>
+                <div style={{ fontSize: "12px", color: "#8b949e", fontWeight: "600", marginBottom: "10px" }}>✏️ เพิ่มอาหารเอง</div>
+                <input style={s.input} placeholder="ชื่ออาหาร" value={custom.name} onChange={e => setCustom(p => ({ ...p, name: e.target.value }))} />
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input style={{ ...s.input, marginBottom: 0 }} placeholder="แคลอรี่ (kcal)" type="number" value={custom.cal} onChange={e => setCustom(p => ({ ...p, cal: e.target.value }))} />
+                  <input style={{ ...s.input, marginBottom: 0 }} placeholder="โปรตีน (g)" type="number" value={custom.protein} onChange={e => setCustom(p => ({ ...p, protein: e.target.value }))} />
+                </div>
+                <button style={{ ...s.addBtn, marginTop: "10px", width: "100%", padding: "10px" }} onClick={addCustom}>✓ เพิ่มลงรายการ</button>
+              </div>
+            </div>
+          )}
+
+          {/* Log tab */}
+          {tab === "log" && (
+            <div>
+              {meals.length === 0 ? (
+                <div style={{ textAlign: "center", color: "#555", padding: "30px 0", fontSize: "13px" }}>ยังไม่มีรายการอาหารวันนี้<br />กด "เพิ่มอาหาร" เพื่อเริ่มต้น</div>
+              ) : (
+                <>
+                  {meals.map(m => (
+                    <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#161b22", border: "1px solid #21262d", borderRadius: "10px", padding: "10px 14px", marginBottom: "8px" }}>
+                      <div>
+                        <div style={s.foodName}>{m.name}</div>
+                        <div style={s.foodMeta}>{m.cal} kcal • โปรตีน {m.protein}g</div>
+                      </div>
+                      <button style={s.delBtn} onClick={() => remove(m.id)}>ลบ</button>
+                    </div>
+                  ))}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0d1117", border: "1px solid #238636", borderRadius: "10px", padding: "10px 14px", marginBottom: "8px", marginTop: "12px" }}>
+                    <div style={{ fontSize: "13px", fontWeight: "700", color: "#3fb950" }}>รวมทั้งหมด</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: "13px", color: "#f0f0f0" }}>
+                      {Math.round(totalCal)} kcal • {Math.round(totalProtein)}g protein
+                    </div>
+                  </div>
+                  <button style={{ ...s.delBtn, width: "100%", padding: "10px", color: "#ff4d4d", borderColor: "#ff4d4d" }}
+                    onClick={() => { if (window.confirm("ล้างรายการทั้งหมด?")) setMeals([]); }}>
+                    🗑 ล้างรายการทั้งหมด
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
